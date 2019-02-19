@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd">
+
+<context:component-scan base-package="com.atguigu.springmvc"/>
+
+<!-- 
+      视图解析器
+      若项目中使用了 JSTL，则 SpringMVC 会自动把视图由InternalResourceView 转为 JstlView
+  -->
+<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+   <property name="prefix" value="/WEB-INF/view/"/>
+   <property name="suffix" value=".jsp"/>
+</bean>
+
+
+<!-- 
+    1).配置  BeanNameViewResolver 视图解析器: 使用视图的名字来解析视图 
+    2).通过 order 属性来定义视图解析器的优先级, order 值越小优先级越高 
+    3).SpringMVC 会按视图解析器顺序的优先顺序对逻辑视图名进行解 析，直到解析成功并返回视图对象，
+              否则将抛出 ServletException 异常
+-->
+<bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
+  <property name="order" value="100"/>
+</bean>
+
+
+<!-- 
+     配置 ConversionService 自定义类型转换器
+   1).注意:在使用ConversionServiceFactoryBean类型转换器服务后,@DateTimeFormat,@NumberFormat注解不起作用
+   2).如要使以上两个注解起作用,需要使用FormattingConversionServiceFactoryBean类型转换器服务,因为
+     FormattingConversionServiceFactroyBean 内部已经注册了@NumberFormat和@DateTimeFormat 注解
+ -->
+<bean id="conversionService" 
+       class="org.springframework.format.support.FormattingConversionServiceFactoryBean">
+  <property name="converters">
+    <set>
+      <ref bean="userConverter"/>
+    </set>
+  </property>
+</bean>
+
+
+<!-- 配置国际化资源文件  -->
+<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+  <property name="basename" value="i18n"/>
+</bean>
+
+<!-- 
+  I18N超链接切换
+ 配置SessionLocaleResolver 
+国际化切换需要配置拦截器栈,且拦截器栈中需要配置LocaleChangeInterceptor拦截器
+ -->
+<bean id="localeResolver" class="org.springframework.web.servlet.i18n.SessionLocaleResolver"/>
+<!-- 配置拦截器栈 -->
+<mvc:interceptors>
+   <!-- 配置自定义拦截器 -->
+   <bean class="com.atguigu.springmvc.a_base.FirstIntercepter"/>
+   <!-- 中英文切换拦截器 -->
+   <bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"/>
+   <!-- 此拦截器只作用于某个URL -->
+   <mvc:interceptor>
+     <mvc:mapping path="/springmvc/helloWorld"/>
+     <bean class="com.atguigu.springmvc.a_base.SecondIntercepter"/>
+   </mvc:interceptor>
+</mvc:interceptors>
+
+<!-- 配置 multipartResolver 实现文件上传-->
+<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+   <property name="defaultEncoding" value="UTF-8"/>
+   <property name="maxUploadSize" value="10240"/>
+</bean>
+
+<!-- 基于XML方式处理异常 -->
+<bean id="simpleMappingExceptionResolver" class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+   <!-- 异常属性键默认为exception 可以更改-->
+   <property name="exceptionAttribute" value="ex"/>
+   <property name="exceptionMappings">
+     <props>
+       <prop key="com.atguigu.springmvc.a_base.UserLockedException">success</prop>
+     </props>
+   </property>
+</bean>
+
+
+<!--  
+	1).default-servlet-handler 将在 SpringMVC 上下文中定义一个 DefaultServletHttpRequestHandler,
+	它会对进入 DispatcherServlet 的请求进行筛查, 如果发现是没有经过映射的请求, 就将该请求交由 WEB 应用服务器
+	默认的Servlet 处理. 如果不是静态资源的请求，才由 DispatcherServlet 继续处理
+	2).一般 WEB 应用服务器默认的 Servlet 的名称都是 default.
+	3).若所使用的 WEB 服务器的默认 Servlet 名称不是 default，则需要通过 default-servlet-name 属性显式指定
+	4).只有存在此配置后,服务器才可以对静态资源请求响应,如css,js.图片等
+-->
+<mvc:default-servlet-handler  default-servlet-name="default"/>
+
+
+<!-- 
+  配置直接转发的页面 
+  可以直接相应转发的页面, 而无需再经过 Handler 的方法.
+  但同时需要配置<mvc:annotation-driven/>否则InternalResourceViewResolver不起作用
+-->
+<mvc:view-controller path="/success" view-name="success"/>
+
+
+
+<!-- 
+  1).在实际开发中通常都需配置 mvc:annotation-driven 标签
+  2).支持使用 ConversionService 实例对表单参数进行类型转换
+  3).支持使用 @NumberFormat、@DateTimeFormat等注解完成数据类型的格式化
+  4).支持使用 @Valid 注解对 JavaBean 实例进行 JSR 303 验证
+  5).支持使用 @RequestBody 和 @ResponseBody 注解
+ -->
+<mvc:annotation-driven conversion-service="conversionService" />
+
+
+
+</beans>
